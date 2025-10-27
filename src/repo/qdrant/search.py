@@ -1,7 +1,7 @@
 import json
 from llama_index.core.schema import BaseNode, TextNode
 from qdrant_client import models
-from . import get_qdrant_client
+from .storage import get_qdrant_client
 
 
 def dense_search(

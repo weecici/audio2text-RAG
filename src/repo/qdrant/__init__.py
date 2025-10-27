@@ -1,2 +1,2 @@
-from .storage import upsert_nodes, get_qdrant_client
+from .storage import upsert_nodes
 from .search import dense_search
