@@ -1,2 +1,2 @@
-from .ingest import *
-from .retrieve import *
+from .ingest import ingest_documents
+from .retrieve import retrieve_documents

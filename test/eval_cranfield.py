@@ -22,8 +22,8 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from src.services.internal import encode_texts  # noqa: E402
-from src.repo.qdrant import search_batch_similar_nodes  # noqa: E402
+from src.services.internal import dense_encode  # noqa: E402
+from src.repo.qdrant import dense_search  # noqa: E402
 
 
 def read_queries(path: str) -> List[Tuple[str, str]]:
@@ -174,12 +174,12 @@ def main():
     query_texts = [q[1] for q in queries]
 
     # Embed queries
-    embeddings = encode_texts(
+    embeddings = dense_encode(
         texts=query_texts, prefix="query", batch_size=args.batch_size
     )
 
     # Retrieve chunk-level results
-    batch_results = search_batch_similar_nodes(
+    batch_results = dense_search(
         query_embeddings=embeddings,
         collection_name=args.collection,
         top_k=args.top_k * 5,  # fetch more chunks to ensure enough distinct docs

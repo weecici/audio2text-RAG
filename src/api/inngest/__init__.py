@@ -1,6 +1,5 @@
-from .ingest import *
-from .retrieve import *
-from .gen import *
+from .ingest import ingest_documents
+from .retrieve import retrieve_documents
 
 
 inngest_functions = [
