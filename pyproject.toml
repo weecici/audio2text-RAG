@@ -10,6 +10,7 @@ dependencies = [
     "hf-transfer>=0.1.9",
     "huggingface-hub[cli]>=0.35.3",
     "inngest>=0.5.9",
+    "ir-datasets>=0.5.11",
     "llama-index>=0.14.5",
     "llama-index-retrievers-bm25>=0.6.5",
     "llama-index-vector-stores-qdrant>=0.8.6",
