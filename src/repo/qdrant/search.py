@@ -19,7 +19,7 @@ def dense_search(
             limit=top_k,
             filter=filters,
             with_payload=True,
-            with_vector=True,
+            with_vector=False,
         )
         for query_emb in query_embeddings
     ]
@@ -35,18 +35,14 @@ def dense_search(
 
         for scored_point in search_result:
             payload = scored_point.payload
-            node_content_str = payload.get("_node_content")
-            if node_content_str:
-                node_content: dict = json.loads(node_content_str)
 
-                important_content = {
-                    k: node_content.get(k) for k in ["id_", "metadata", "text"]
-                }
-                important_content["score"] = scored_point.score
+            important_content = {
+                "id": scored_point.id,
+                "score": scored_point.score,
+                **payload,
+            }
 
-                current_result.append(important_content)
-            else:
-                raise ValueError(f"Missing node's contents")
+            current_result.append(important_content)
 
         all_results.append(current_result)
 
