@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+from typing import Literal
 
 
 class IngestRequest(BaseModel):
@@ -20,4 +21,7 @@ class RetrievalQuery(BaseModel):
     )
     top_k: int = Field(
         default=5, description="Number of top similar documents to retrieve"
+    )
+    mode: Literal["dense", "sparse", "hybrid"] = Field(
+        default="hybrid", description="The retrieval mode to use"
     )
