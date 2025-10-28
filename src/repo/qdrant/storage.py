@@ -1,7 +1,6 @@
 from functools import lru_cache
-from qdrant_client import QdrantClient
+from qdrant_client import QdrantClient, models
 from llama_index.core.schema import BaseNode
-from qdrant_client import models
 from src.core import config
 
 
@@ -11,7 +10,10 @@ def get_qdrant_client() -> QdrantClient:
 
 
 def ensure_collection_exists(
-    collection_name: str, vector_size: int = config.EMBEDDING_DIM
+    collection_name: str,
+    dense_name: str = config.EMBEDDING_MODEL,
+    sparse_name: str = config.SPARSE_MODEL,
+    vector_size: int = config.EMBEDDING_DIM,
 ) -> None:
     client = get_qdrant_client()
 
@@ -22,37 +24,52 @@ def ensure_collection_exists(
 
     client.create_collection(
         collection_name=collection_name,
-        vectors_config=models.VectorParams(
-            size=vector_size,
-            distance=models.Distance.COSINE,
-            hnsw_config=models.HnswConfigDiff(
-                m=32,
-                ef_construct=100,
+        vectors_config={
+            dense_name: models.VectorParams(
+                size=vector_size,
+                distance=models.Distance.COSINE,
+                hnsw_config=models.HnswConfigDiff(
+                    m=32,
+                    ef_construct=100,
+                ),
             ),
-        ),
+        },
         sparse_vectors_config={
-            "text": models.SparseVectorParams(),
+            sparse_name: models.SparseVectorParams(),
         },
     )
     print(f"Created collection '{collection_name}'")
 
 
-def upsert_nodes(nodes: list[BaseNode], collection_name: str) -> None:
+def upsert_nodes(
+    nodes: list[BaseNode],
+    collection_name: str,
+    dense_name: str = config.EMBEDDING_MODEL,
+    sparse_name: str = config.SPARSE_MODEL,
+    vector_size: int = config.EMBEDDING_DIM,
+) -> None:
     if not nodes:
         raise ValueError("No nodes provided for upserting")
 
     if not all(node.embedding is not None for node in nodes):
         raise ValueError("All nodes must have embeddings attached before upserting")
 
-    ensure_collection_exists(collection_name=collection_name)
+    ensure_collection_exists(
+        collection_name=collection_name,
+        dense_name=dense_name,
+        sparse_name=sparse_name,
+        vector_size=vector_size,
+    )
 
     client = get_qdrant_client()
-    client.upsert(
+    out = client.upsert(
         collection_name=collection_name,
         points=[
             models.PointStruct(
                 id=node.id_,
-                vector=node.embedding,
+                vector={
+                    dense_name: node.embedding,
+                },
                 payload={
                     "text": node.text,
                     "metadata": node.metadata,
@@ -62,6 +79,9 @@ def upsert_nodes(nodes: list[BaseNode], collection_name: str) -> None:
         ],
     )
 
-    print(
-        f"Successfully upserted {len(nodes)} nodes into collection '{collection_name}'."
-    )
+    # Qdrant returns UpdateStatus.ACKNOWLEDGED or COMPLETED
+    if out.status not in (
+        models.UpdateStatus.ACKNOWLEDGED,
+        models.UpdateStatus.COMPLETED,
+    ):
+        raise RuntimeError(f"Failed to upsert nodes: {out}")
