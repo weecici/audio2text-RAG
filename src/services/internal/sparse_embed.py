@@ -5,18 +5,9 @@ import nltk
 from nltk import WordNetLemmatizer, SnowballStemmer
 from scipy.sparse import csc_matrix, csr_matrix
 from typing import Literal, Optional
+from src.utils import tokenize
 
 nltk.download("wordnet")
-
-
-def stem(words: list[str]) -> list[str]:
-    stemmer = SnowballStemmer("english")
-    return [stemmer.stem(word) for word in words]
-
-
-def lemmatize(words: list[str]) -> list[str]:
-    lmtz = WordNetLemmatizer()
-    return [lmtz.lemmatize(word) for word in words]
 
 
 def sparse_encode(
@@ -29,11 +20,7 @@ def sparse_encode(
     delta: float = 1.5,
 ) -> tuple[csr_matrix, dict[str, int]]:
 
-    process_method: callable[[list[str]], list[str]] = stem
-    if word_process_method == "lemmatize":
-        process_method = lemmatize
-
-    text_tokens = bm25s.tokenize(texts=texts, stopwords="en", stemmer=process_method)
+    text_tokens = tokenize(texts=texts, word_process_method=word_process_method)
     vocab = text_tokens.vocab.copy()
 
     retriever = bm25s.BM25(
