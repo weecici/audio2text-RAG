@@ -2,7 +2,7 @@ import inngest
 from fastapi import status
 from src import schemas
 from src.services.internal import dense_encode
-from src.repo.qdrant import dense_search, sparse_search
+from src.repo.qdrant import dense_search, sparse_search, hybrid_search
 
 
 def retrieve_documents(ctx: inngest.Context) -> schemas.RetrievalResponse:
@@ -41,7 +41,12 @@ def retrieve_documents(ctx: inngest.Context) -> schemas.RetrievalResponse:
                 top_k=request.top_k,
             )
         elif request.mode == "hybrid":
-            pass
+            results = hybrid_search(
+                query_embeddings=query_embeddings,
+                query_texts=request.queries,
+                collection_name=request.collection_name,
+                top_k=request.top_k,
+            )
         else:
             raise ValueError(f"Invalid retrieval mode: {request.mode}")
 
