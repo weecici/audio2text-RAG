@@ -6,13 +6,14 @@ from nltk import WordNetLemmatizer, SnowballStemmer
 from scipy.sparse import csc_matrix, csr_matrix
 from typing import Literal, Optional
 from src.utils import tokenize
+from src.core import config
 
 nltk.download("wordnet")
 
 
 def sparse_encode(
     texts: list[str],
-    word_process_method: Literal["lemmatize", "stem"] = "stem",
+    word_process_method: Literal["lemmatize", "stem"] = config.WORD_PROCESS_METHOD,
     bm25_method: str = "robertson",
     bm25_idf_method: Optional[str] = None,
     k1: float = 1.5,
