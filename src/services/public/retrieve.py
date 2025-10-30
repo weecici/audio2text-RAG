@@ -1,7 +1,7 @@
 import inngest
 from fastapi import status
 from src import schemas
-from src.services.internal import dense_encode
+from src.services.internal import dense_encode, rerank
 from src.repo.qdrant import dense_search, sparse_search, hybrid_search
 
 
@@ -27,6 +27,10 @@ def retrieve_documents(ctx: inngest.Context) -> schemas.RetrievalResponse:
                 f"Generated {len(query_embeddings)} query embeddings with each embedding's length is: {len(query_embeddings[0])}"
             )
 
+        # Retrieve documents based on the specified mode
+        ctx.logger.info(
+            f"Performing '{request.mode}' retrieval from collection '{request.collection_name}'."
+        )
         results: list[list[dict]] | None = None
         if request.mode == "dense":
             results = dense_search(
@@ -56,6 +60,12 @@ def retrieve_documents(ctx: inngest.Context) -> schemas.RetrievalResponse:
             )
         ctx.logger.info(
             f"Retrieved top {request.top_k} similar documents for each of the {len(request.queries)} queries from collection '{request.collection_name}'."
+        )
+
+        # Rerank results
+        results = rerank(
+            queries=request.queries,
+            candidates=results,
         )
 
         return schemas.RetrievalResponse(

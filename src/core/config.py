@@ -15,3 +15,7 @@ SPARSE_MODEL = os.getenv("SPARSE_MODEL", "bm25")
 DISK_STORAGE_PATH = os.getenv("DISK_STORAGE_PATH", "./.storage")
 WORD_PROCESS_METHOD = os.getenv("WORD_PROCESS_METHOD", "stem")
 FUSION_METHOD = os.getenv("FUSION_METHOD", "dbsf")
+RERANKING_MODEL = os.getenv("RERANKING_MODEL", "ms-marco-MiniLM-L6-v2")
+RERANKING_MODEL_PATH = os.getenv(
+    "RERANKING_MODEL_PATH", "cross-encoder/ms-marco-MiniLM-L6-v2"
+)
