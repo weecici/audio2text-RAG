@@ -48,20 +48,3 @@ results, scores = retriever.retrieve(query_tokens, k=2)
 for i in range(results.shape[1]):
     doc, score = results[0, i], scores[0, i]
     print(f"Rank {i+1} (score: {score:.2f}): {doc}")
-
-STORAGE_PATH = "./.storage/bm25/animal_index_bm25"
-import json
-
-retriever.save(STORAGE_PATH)
-
-data = np.load(os.path.join(STORAGE_PATH, "data.csc.index.npy"), mmap_mode="r")
-indices = np.load(os.path.join(STORAGE_PATH, "indices.csc.index.npy"), mmap_mode="r")
-indptr = np.load(os.path.join(STORAGE_PATH, "indptr.csc.index.npy"), mmap_mode="r")
-
-n_docs = len(corpus)  # or load from saved metadata if present
-vocab_size = len(vocab)
-
-print(data.shape, indices.shape, indptr.shape, n_docs, vocab_size)
-
-X = csc_matrix((data, indices, indptr), shape=(n_docs, vocab_size))
-print(X)
