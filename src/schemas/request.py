@@ -33,3 +33,7 @@ class RetrievalQuery(BaseModel):
         default="sparse_matrix",
         description="Method for sparse encoding",
     )
+    overfetch_mul: float = Field(
+        default=2.0,
+        description="Multiplier for overfetching in hybrid retrieval",
+    )

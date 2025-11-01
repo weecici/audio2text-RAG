@@ -30,7 +30,7 @@ def ingest_documents(ctx: inngest.Context) -> schemas.IngestionResponse:
 
         ctx.logger.info(f"Processed {len(nodes)} chunks with UUIDs and metadata.")
 
-        # Create dense embeddings for the nodes
+        # Create dense embeddings for the docs
         dense_embeddings = dense_encode(
             texts=[node.text for node in nodes],
             titles=[node.metadata.get("title", "none") for node in nodes],
@@ -46,8 +46,8 @@ def ingest_documents(ctx: inngest.Context) -> schemas.IngestionResponse:
             f"Generated {len(nodes)} dense embeddings with each embedding's size is: {len(dense_embeddings[0])}"
         )
 
-        # Create sparse embeddings for the nodes
         if request.sparse_process_method == "sparse_matrix":
+            # Create sparse embeddings for the docs
             sparse_embeddings, vocab = sparse_encode(
                 texts=[node.text for node in nodes],
             )
@@ -64,8 +64,11 @@ def ingest_documents(ctx: inngest.Context) -> schemas.IngestionResponse:
                 collection_name=request.collection_name,
             )
         else:
+            # Build inverted index for the docs
             indexed_docs = build_inverted_index(
                 texts=[node.text for node in nodes],
+                uuids=[node.id_ for node in nodes],
+                metadata=[node.metadata for node in nodes],
             )
 
             ctx.logger.info(

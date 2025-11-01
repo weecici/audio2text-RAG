@@ -5,6 +5,8 @@ from src.utils import tokenize
 
 def build_inverted_index(
     texts: list[str],
+    uuids: list[str],
+    metadata: list[dict],
     word_process_method: str = config.WORD_PROCESS_METHOD,
 ) -> None:
     tokenized = tokenize(
@@ -42,12 +44,15 @@ def build_inverted_index(
             if len(tokenized) > 0
             else None
         ),
+        "uuids": uuids,
     }
 
     indexed_docs: dict[str, dict] = {
         "vocab": vocab,
         "postings": postings_serializable,
-        "docs": texts,
+        "docs": [
+            {"text": text, "metadata": meta} for text, meta in zip(texts, metadata)
+        ],
         "meta": meta,
     }
 

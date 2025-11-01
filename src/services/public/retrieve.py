@@ -53,12 +53,24 @@ def retrieve_documents(ctx: inngest.Context) -> schemas.RetrievalResponse:
                     top_k=request.top_k,
                 )
         elif request.mode == "hybrid":
-            results = hybrid_search(
-                query_embeddings=query_embeddings,
-                query_texts=request.queries,
-                collection_name=request.collection_name,
-                top_k=request.top_k,
-            )
+            if request.sparse_process_method == "sparse_matrix":
+                results = hybrid_search(
+                    query_embeddings=query_embeddings,
+                    query_texts=request.queries,
+                    collection_name=request.collection_name,
+                    top_k=request.top_k,
+                )
+            else:
+                dense_results = dense_search(
+                    query_embeddings=query_embeddings,
+                    collection_name=request.collection_name,
+                    top_k=request.top_k,
+                )
+                sparse_results = index_retrieve(
+                    query_texts=request.queries,
+                    collection_name=request.collection_name,
+                    top_k=request.top_k,
+                )
         else:
             raise ValueError(f"Invalid retrieval mode: {request.mode}")
 
@@ -71,10 +83,10 @@ def retrieve_documents(ctx: inngest.Context) -> schemas.RetrievalResponse:
         )
 
         # Rerank results
-        # results = rerank(
-        #     queries=request.queries,
-        #     candidates=results,
-        # )
+        results = rerank(
+            queries=request.queries,
+            candidates=results,
+        )
 
         return schemas.RetrievalResponse(
             status=status.HTTP_200_OK,

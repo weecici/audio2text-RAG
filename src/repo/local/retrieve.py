@@ -75,11 +75,16 @@ def index_retrieve(
 
         # sort and pick top_k
         sorted_docs = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:top_k]
+        uuids = meta["uuids"]
 
         current: list[dict] = []
         for doc_id, score in sorted_docs:
             current.append(
-                {"id": doc_id, "score": float(score), "payload": {"text": docs[doc_id]}}
+                {
+                    "id": uuids[doc_id],
+                    "score": float(score),
+                    "payload": docs[doc_id],
+                }
             )
 
         results.append(current)

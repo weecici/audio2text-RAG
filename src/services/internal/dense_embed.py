@@ -9,6 +9,7 @@ from src.core import config
 @lru_cache(maxsize=1)
 def get_embedding_model() -> SentenceTransformer:
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"Loading embedding model {config.EMBEDDING_MODEL} on device: {device}")
     model = SentenceTransformer(
         model_name_or_path=config.EMBEDDING_MODEL_PATH,
         device=device,

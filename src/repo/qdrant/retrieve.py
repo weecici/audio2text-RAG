@@ -98,7 +98,7 @@ def sparse_search(
     top_k: int = 5,
     filter: Optional[models.Filter] = None,
     sparse_name: str = config.SPARSE_MODEL,
-):
+) -> list[list[dict]]:
     client = get_qdrant_client()
     vocab = _load_vocab(collection_name)
 
@@ -138,7 +138,7 @@ def hybrid_search(
     fusion_method: Literal["dbsf", "rrf"] = config.FUSION_METHOD,
     dense_name: str = config.EMBEDDING_MODEL,
     sparse_name: str = config.SPARSE_MODEL,
-):
+) -> list[list[dict]]:
     client = get_qdrant_client()
     vocab = _load_vocab(collection_name)
 
