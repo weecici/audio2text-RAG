@@ -47,7 +47,7 @@ def ingest_documents(ctx: inngest.Context) -> schemas.IngestionResponse:
         )
 
         # Create sparse embeddings for the nodes
-        if request.sparse_process_method == "vectorize":
+        if request.sparse_process_method == "sparse_matrix":
             sparse_embeddings, vocab = sparse_encode(
                 texts=[node.text for node in nodes],
             )

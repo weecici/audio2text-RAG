@@ -40,7 +40,7 @@ def retrieve_documents(ctx: inngest.Context) -> schemas.RetrievalResponse:
                 top_k=request.top_k,
             )
         elif request.mode == "sparse":
-            if request.sparse_process_method == "vectorize":
+            if request.sparse_process_method == "sparse_matrix":
                 results = sparse_search(
                     query_texts=request.queries,
                     collection_name=request.collection_name,
