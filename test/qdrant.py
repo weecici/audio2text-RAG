@@ -10,9 +10,27 @@ def list_collections(client: QdrantClient) -> None:
     print(f"Existing Qdrant collections: {collections}")
 
 
-def check_collection_exists(client: QdrantClient, collection_name: str) -> bool:
-    collections = client.get_collections().collections
-    return any(col.name == collection_name for col in collections)
+def display_collection_info(client: QdrantClient, collection_name: str) -> None:
+    try:
+        info = client.get_collection(collection_name=collection_name)
+        print(f"Information for collection '{collection_name}':")
+        print(f"  - Points count: {info.points_count}")
+        print(f"  - Vectors count: {info.vectors_count}")
+        print(f"  - Indexed vectors count: {info.indexed_vectors_count}")
+        print(f"  - Segments count: {info.segments_count}")
+
+        if isinstance(info.config.params.vectors, dict):
+            for vector_name, vector_params in info.config.params.vectors.items():
+                print(f"  - Vector params ('{vector_name}'):")
+                print(f"    - Size: {vector_params.size}")
+                print(f"    - Distance: {vector_params.distance}")
+        else:
+            print("  - Vector params:")
+            print(f"    - Size: {info.config.params.vectors.size}")
+            print(f"    - Distance: {info.config.params.vectors.distance}")
+
+    except Exception:
+        print(f"Collection '{collection_name}' does not exist.")
 
 
 def delete_collection(client: QdrantClient, collection_name: str) -> None:
@@ -40,7 +58,7 @@ if __name__ == "__main__":
             "kwargs": {
                 "type": str,
                 "metavar": "COLLECTION_NAME",
-                "help": "Check if a specific collection exists.",
+                "help": "Check a specific collection and show its info.",
             },
         },
         {
@@ -65,10 +83,7 @@ if __name__ == "__main__":
         if args.list:
             list_collections(client)
         elif args.check is not None:
-            exists = check_collection_exists(client, args.check)
-            print(
-                f"Collection '{args.check}' {'exists' if exists else 'does not exist'}."
-            )
+            display_collection_info(client, args.check)
         elif args.delete is not None:
             delete_collection(client, args.delete)
     except Exception as e:
