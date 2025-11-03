@@ -9,7 +9,7 @@ from src.services.internal import fuse_results
 
 def retrieve_documents(ctx: inngest.Context) -> schemas.RetrievalResponse:
     try:
-        request = schemas.RetrievalQuery.model_validate(ctx.event.data)
+        request = schemas.RetrievalRequest.model_validate(ctx.event.data)
 
         if not request.queries:
             raise ValueError("No query text provided in event data.")

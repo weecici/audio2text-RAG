@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 from typing import Literal
 
 
-class IngestRequest(BaseModel):
+class IngestionRequest(BaseModel):
     file_paths: list[str] = Field(
         default=[], description="List of file paths to ingest documents from"
     )
@@ -18,7 +18,7 @@ class IngestRequest(BaseModel):
     )
 
 
-class RetrievalQuery(BaseModel):
+class RetrievalRequest(BaseModel):
     queries: list[str] = Field(..., description="The list of query texts")
     collection_name: str = Field(
         default="documents", description="Name of the Qdrant collection"
@@ -39,4 +39,16 @@ class RetrievalQuery(BaseModel):
     )
     rerank_enabled: bool = Field(
         default=False, description="Whether to rerank retrieved results"
+    )
+
+
+class GenerationRequest(RetrievalRequest):
+    model_name: Literal[
+        "gpt-oss-120b",
+        "llama-3.3-70b",
+        "qwen-3-235b-a22b-thinking-2507",
+        "qwen-3-coder-480b",
+    ] = Field(
+        default="gpt-oss-120b",
+        description="Name of the LLM to use for generation",
     )

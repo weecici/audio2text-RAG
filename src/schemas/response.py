@@ -12,3 +12,10 @@ class RetrievalResponse(BaseModel):
     results: list[list[dict[str, Any]]] = Field(
         ..., description="List of retrieved documents with their metadata"
     )
+
+
+class GenerationResponse(BaseModel):
+    status: int = Field(..., description="HTTP status code of the generation process")
+    responses: list[str] = Field(
+        ..., description="List of generated responses corresponding to the queries"
+    )

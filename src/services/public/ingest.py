@@ -13,7 +13,7 @@ from src.repo.local import store_index
 
 def ingest_documents(ctx: inngest.Context) -> schemas.IngestionResponse:
     try:
-        request = schemas.IngestRequest.model_validate(ctx.event.data)
+        request = schemas.RetrievalRequest.model_validate(ctx.event.data)
         if not request.file_paths and not request.file_dir:
             raise ValueError("No file paths or directory provided in event data.")
 

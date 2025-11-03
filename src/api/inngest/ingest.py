@@ -1,6 +1,5 @@
 import inngest
 import src.services.public as public_svcs
-from src import schemas
 from src.core import inngest_client, app
 
 
@@ -9,5 +8,5 @@ from src.core import inngest_client, app
     trigger=inngest.TriggerEvent(event="rag/ingest-documents"),
     retries=0,
 )
-async def ingest_documents(ctx: inngest.Context) -> schemas.IngestionResponse:
+async def ingest_documents(ctx: inngest.Context) -> dict[str, any]:
     return public_svcs.ingest_documents(ctx).model_dump()
