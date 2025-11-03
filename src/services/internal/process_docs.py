@@ -1,4 +1,5 @@
 import uuid
+from src import schemas
 from src.core import config
 from llama_index.core import Document, SimpleDirectoryReader
 from llama_index.core.node_parser import SentenceSplitter
@@ -18,18 +19,17 @@ def process_documents(file_paths: list[str], file_dir: str) -> list[TextNode]:
         doc.doc_id = doc.metadata.get("file_name", "unknown").split(".")[0]
         chunks = splitter.split_text(doc.text)
         for idx, chunk in enumerate(chunks):
+
             node_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{doc.doc_id}_{idx}"))
 
-            node = TextNode(
-                id_=node_id,
-                text=chunk,
-                metadata={
-                    "document_id": doc.doc_id,
-                    "title": doc.metadata.get("title", "none"),
-                    "file_name": doc.metadata.get("file_name", "unknown"),
-                    "file_path": doc.metadata.get("file_path", "unknown"),
-                },
+            metadata = schemas.DocumentMetadata(
+                document_id=doc.doc_id,
+                title=doc.metadata.get("title", "none"),
+                file_name=doc.metadata.get("file_name", "unknown"),
+                file_path=doc.metadata.get("file_path", "unknown"),
             )
+
+            node = TextNode(id_=node_id, text=chunk, metadata=metadata.model_dump())
             nodes.append(node)
 
     return nodes

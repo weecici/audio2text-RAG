@@ -8,7 +8,7 @@ def build_inverted_index(
     uuids: list[str],
     metadata: list[dict],
     word_process_method: str = config.WORD_PROCESS_METHOD,
-) -> None:
+) -> dict[str, dict]:
     tokenized = tokenize(
         texts=texts, word_process_method=word_process_method, return_ids=False
     )

@@ -51,7 +51,6 @@ def retrieve_documents(ctx: inngest.Context) -> schemas.RetrievalResponse:
         ctx.logger.info(
             f"Performing '{request.mode}' retrieval from collection '{request.collection_name}'."
         )
-        results: list[list[dict]] | None = None
         if request.mode == "dense":
             results = dense_search(
                 query_embeddings=dense_query_embeddings,

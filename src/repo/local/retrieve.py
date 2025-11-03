@@ -1,7 +1,8 @@
 import os
 import json
 from collections import Counter
-from typing import Literal
+from typing import Literal, Union
+from src import schemas
 from src.core import config
 from src.utils import *
 from .storage import _paths_for, _index_cache
@@ -35,20 +36,24 @@ def index_retrieve(
     top_k: int = 5,
     method: Literal["tfidf", "okapi-bm25"] = "okapi-bm25",
     word_process_method: str = config.WORD_PROCESS_METHOD,
-) -> list[list[dict]]:
+) -> list[list[schemas.RetrievedDocument]]:
 
     index = _load_index(collection_name)
+
     vocab: dict[str, int] = index["vocab"]
     postings: dict[int, list[list[int]]] = index["postings"]
-    docs: list[str] = index["docs"]
+    docs: list[schemas.DocumentPayload] = [
+        schemas.DocumentPayload.model_validate(payload) for payload in index["docs"]
+    ]
     meta: dict = index["meta"]
+
     N = meta["doc_count"]
 
     tokenized_queries = tokenize(
         texts=query_texts, word_process_method=word_process_method, return_ids=False
     )
 
-    results: list[list[dict]] = []
+    results: list[list[schemas.RetrievedDocument]] = []
     for tokens in tokenized_queries:
         counts = Counter(tokens)
         scores: dict[int, float] = {}
@@ -75,18 +80,18 @@ def index_retrieve(
 
         # sort and pick top_k
         sorted_docs = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:top_k]
-        uuids = meta["uuids"]
+        uuids: list[Union[int, str]] = meta["uuids"]
 
-        current: list[dict] = []
+        current_result: list[schemas.RetrievedDocument] = []
         for doc_id, score in sorted_docs:
-            current.append(
-                {
-                    "id": uuids[doc_id],
-                    "score": float(score),
-                    "payload": docs[doc_id],
-                }
+            current_result.append(
+                schemas.RetrievedDocument(
+                    id=uuids[doc_id],
+                    score=score,
+                    payload=docs[doc_id],
+                )
             )
 
-        results.append(current)
+        results.append(current_result)
 
     return results

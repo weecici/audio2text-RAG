@@ -2,43 +2,26 @@ import os
 import json
 from typing import Optional, Literal
 from qdrant_client import models
-from .storage import get_qdrant_client
+from src import schemas
 from src.core import config
-
-
-_vocab_cache: dict[str, dict[str, int]] = {}
-
-
-def _load_vocab(collection_name: str) -> dict[str, int]:
-    if collection_name in _vocab_cache:
-        return _vocab_cache[collection_name]
-
-    vocab_path = os.path.join(config.DISK_STORAGE_PATH, f"{collection_name}_vocab.json")
-    if not os.path.exists(vocab_path):
-        raise FileNotFoundError(f"Vocabulary file not found at {vocab_path}")
-
-    with open(vocab_path, "r") as f:
-        vocab: dict[str, int] = json.load(f)
-
-    _vocab_cache[collection_name] = vocab
-    return vocab
+from .storage import get_qdrant_client
 
 
 def _format_batch_results(
     batch_results: list[list[models.ScoredPoint]],
-) -> list[list[dict]]:
-    all_results: list[list[dict]] = []
+) -> list[list[schemas.RetrievedDocument]]:
+    all_results: list[list[schemas.RetrievedDocument]] = []
     for search_result in batch_results:
-        current_result: list[dict] = []
+        current_result: list[schemas.RetrievedDocument] = []
 
         for scored_point in search_result:
-            payload = scored_point.payload or {}
+            payload = schemas.DocumentPayload.model_validate(scored_point.payload)
             current_result.append(
-                {
-                    "id": scored_point.id,
-                    "score": scored_point.score,
-                    "payload": payload,
-                }
+                schemas.RetrievedDocument(
+                    id=scored_point.id,
+                    score=scored_point.score,
+                    payload=payload,
+                )
             )
 
         all_results.append(current_result)
@@ -52,7 +35,7 @@ def dense_search(
     top_k: int = 5,
     filter: Optional[models.Filter] = None,
     dense_name: str = config.DENSE_MODEL,
-) -> list[list[dict]]:
+) -> list[list[schemas.RetrievedDocument]]:
 
     client = get_qdrant_client()
 
@@ -82,9 +65,8 @@ def sparse_search(
     top_k: int = 5,
     filter: Optional[models.Filter] = None,
     sparse_name: str = config.SPARSE_MODEL,
-) -> list[list[dict]]:
+) -> list[list[schemas.RetrievedDocument]]:
     client = get_qdrant_client()
-    vocab = _load_vocab(collection_name)
 
     search_queries = []
     for indices, values in query_embeddings:
@@ -118,7 +100,7 @@ def hybrid_search(
     fusion_method: Literal["dbsf", "rrf"] = config.FUSION_METHOD,
     dense_name: str = config.DENSE_MODEL,
     sparse_name: str = config.SPARSE_MODEL,
-) -> list[list[dict]]:
+) -> list[list[schemas.RetrievedDocument]]:
     client = get_qdrant_client()
 
     if fusion_method.lower() == "dbsf":

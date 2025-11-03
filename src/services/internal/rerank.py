@@ -2,6 +2,7 @@ import torch
 from functools import lru_cache
 from sentence_transformers import CrossEncoder
 from scipy.special import softmax
+from src import schemas
 from src.core import config
 
 
@@ -13,8 +14,10 @@ def _get_reranking_model() -> CrossEncoder:
 
 
 def rerank(
-    queries: list[str], candidates: list[list[dict]], batch_size: int = 8
-) -> list[list[dict]]:
+    queries: list[str],
+    candidates: list[list[schemas.RetrievedDocument]],
+    batch_size: int = 8,
+) -> list[list[schemas.RetrievedDocument]]:
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = _get_reranking_model()
@@ -26,18 +29,17 @@ def rerank(
     sentence_pairs = []
     for i, query in enumerate(queries):
         for candidate in candidates[i]:
-            if "payload" not in candidate:
-                raise ValueError(
-                    "Candidate document is missing 'payload' field required for reranking."
-                )
-            sentence_pairs.append([query, candidate["payload"]["text"]])
+            sentence_pairs.append([query, candidate.payload.text])
 
     if not sentence_pairs:
         return []
 
-    scores = model.predict(sentence_pairs, batch_size=batch_size)
+    scores = model.predict(
+        sentence_pairs, batch_size=batch_size, convert_to_tensor=True
+    )
+    scores: list[float] = scores.cpu().tolist()
 
-    reranked_results: list[list[dict]] = []
+    reranked_results: list[list[schemas.RetrievedDocument]] = []
     score_idx = 0
     for i, _ in enumerate(queries):
         num_candidates = len(candidates[i])
@@ -50,7 +52,7 @@ def rerank(
 
         current_reranked = []
         for candidate, score in scored_candidates:
-            candidate["score"] = float(score)
+            candidate.score = score
             current_reranked.append(candidate)
 
         reranked_results.append(current_reranked)

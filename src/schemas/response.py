@@ -1,5 +1,6 @@
 from typing import Any
 from pydantic import BaseModel, Field
+from .doc import RetrievedDocument
 
 
 class IngestionResponse(BaseModel):
@@ -9,7 +10,7 @@ class IngestionResponse(BaseModel):
 
 class RetrievalResponse(BaseModel):
     status: int = Field(..., description="HTTP status code of the retrieval process")
-    results: list[list[dict[str, Any]]] = Field(
+    results: list[list[RetrievedDocument]] = Field(
         ..., description="List of retrieved documents with their metadata"
     )
 

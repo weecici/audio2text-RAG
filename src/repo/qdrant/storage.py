@@ -1,11 +1,9 @@
-import os
-import json
 from functools import lru_cache
 from qdrant_client import QdrantClient, models
 from llama_index.core.schema import BaseNode
-from src.core import config
-from scipy.sparse import csr_matrix
 from typing import Optional
+from src import schemas
+from src.core import config
 
 
 @lru_cache(maxsize=1)
@@ -77,7 +75,6 @@ def upsert_data(
 
     points: list[models.PointStruct] = []
     for i, node in enumerate(nodes):
-        print("curr:", i)
         vector_map: dict[str, object] = {
             dense_name: dense_embeddings[i],
             sparse_name: (
@@ -89,14 +86,16 @@ def upsert_data(
             ),
         }
 
+        payload = schemas.DocumentPayload(
+            text=node.text,
+            metadata=schemas.DocumentMetadata.model_validate(node.metadata),
+        )
+
         points.append(
             models.PointStruct(
                 id=node.id_,
                 vector=vector_map,
-                payload={
-                    "text": node.text,
-                    "metadata": node.metadata,
-                },
+                payload=payload.model_dump(),
             )
         )
 
