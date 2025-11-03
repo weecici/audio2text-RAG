@@ -4,3 +4,5 @@ from .inverted_index import build_inverted_index
 from .process_docs import process_documents
 from .rerank import rerank
 from .fuse import fuse_results
+from .augment import augment_prompts
+from .chat import generate

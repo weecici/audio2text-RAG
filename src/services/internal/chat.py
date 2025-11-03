@@ -12,4 +12,13 @@ def _get_llm_client() -> Cerebras:
 
 def generate(prompts: list[str], model: str) -> list[str]:
     client = _get_llm_client()
-    return []
+    messages_list = [[{"role": "user", "content": prompt}] for prompt in prompts]
+
+    responses = []
+    for messages in messages_list:
+        response = client.chat.completions.create(
+            model=model,
+            messages=messages,
+        )
+        responses.append(response.choices[0].message.content)
+    return responses
