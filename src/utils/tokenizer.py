@@ -4,8 +4,6 @@ from bm25s.tokenization import Tokenized
 from nltk import WordNetLemmatizer, SnowballStemmer
 from typing import Literal
 
-nltk.download("wordnet")
-
 
 def stem(words: list[str]) -> list[str]:
     stemmer = SnowballStemmer("english")
@@ -24,6 +22,7 @@ def tokenize(
 ) -> list[list[str]] | Tokenized:
     process_method: callable[[list[str]], list[str]] = stem
     if word_process_method == "lemmatize":
+        nltk.download("wordnet")
         process_method = lemmatize
     text_tokens = bm25s.tokenize(
         texts=texts, stopwords="en", stemmer=process_method, return_ids=return_ids

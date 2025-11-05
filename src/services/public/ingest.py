@@ -40,44 +40,38 @@ def ingest_documents(request: schemas.IngestionRequest) -> schemas.IngestionResp
             f"Generated {len(dense_embeddings)} dense embeddings with each embedding's size is: {len(dense_embeddings[0])}"
         )
 
-        if request.sparse_process_method == "sparse_embedding":
-            # Create sparse embeddings for the docs
-            sparse_embeddings = sparse_encode(
-                text_type="document",
-                texts=[node.text for node in nodes],
-            )
+        # Create sparse embeddings for the docs
+        sparse_embeddings = sparse_encode(
+            text_type="document",
+            texts=[node.text for node in nodes],
+        )
 
-            logger.info(f"Generated {len(sparse_embeddings)} sparse embeddings.")
+        logger.info(f"Generated {len(sparse_embeddings)} sparse embeddings.")
 
-            upsert_data(
-                nodes=nodes,
-                dense_embeddings=dense_embeddings,
-                sparse_embeddings=sparse_embeddings,
-                collection_name=request.collection_name,
-            )
-        else:
-            # Build inverted index for the docs
-            indexed_docs = build_inverted_index(
-                texts=[node.text for node in nodes],
-                uuids=[node.id_ for node in nodes],
-                metadata=[node.metadata for node in nodes],
-            )
+        # Build inverted index for the docs
+        indexed_docs = build_inverted_index(
+            texts=[node.text for node in nodes],
+            uuids=[node.id_ for node in nodes],
+            metadata=[node.metadata for node in nodes],
+        )
 
-            logger.info(
-                f"Built inverted index with vocab size: {len(indexed_docs['vocab'])}"
-            )
+        logger.info(
+            f"Built inverted index with vocab size: {len(indexed_docs['vocab'])}"
+        )
 
-            store_index(
-                collection_name=request.collection_name,
-                indexed_docs=indexed_docs,
-            )
+        # Store the inverted index locally
+        store_index(
+            collection_name=request.collection_name,
+            indexed_docs=indexed_docs,
+        )
 
-            upsert_data(
-                nodes=nodes,
-                dense_embeddings=dense_embeddings,
-                sparse_embeddings=None,
-                collection_name=request.collection_name,
-            )
+        # Upsert data into VectorDB
+        upsert_data(
+            nodes=nodes,
+            dense_embeddings=dense_embeddings,
+            sparse_embeddings=sparse_embeddings,
+            collection_name=request.collection_name,
+        )
 
         logger.info(
             f"Completed ingestion process of {len(nodes)} documents for collection '{request.collection_name}'."
