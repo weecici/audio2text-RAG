@@ -2,8 +2,13 @@ from fastapi import status
 from src import schemas
 from src.utils import logger
 from src.services.internal import dense_encode, sparse_encode, rerank
-from src.repo.postgres import dense_search, sparse_search, hybrid_search
-from src.repo.local import index_retrieve
+from src.repo.postgres import (
+    dense_search,
+    sparse_search,
+    index_search,
+    hybrid_search,
+    ii_hybrid_search,
+)
 from src.services.internal import fuse_results
 
 
@@ -32,7 +37,7 @@ def retrieve_documents(request: schemas.RetrievalRequest) -> schemas.RetrievalRe
         # Generate sparse embeddings for the queries
         if (
             request.mode in ["sparse", "hybrid"]
-            and request.sparse_process_method == "sparse_embedding"
+            and request.sparse_search_method == "embedding"
         ):
             sparse_query_embeddings = sparse_encode(
                 texts=request.queries, text_type="query"
@@ -56,20 +61,20 @@ def retrieve_documents(request: schemas.RetrievalRequest) -> schemas.RetrievalRe
                 top_k=request.top_k,
             )
         elif request.mode == "sparse":
-            if request.sparse_process_method == "sparse_embedding":
+            if request.sparse_search_method == "embedding":
                 results = sparse_search(
                     query_embeddings=sparse_query_embeddings,
                     collection_name=request.collection_name,
                     top_k=request.top_k,
                 )
             else:
-                results = index_retrieve(
+                results = index_search(
                     query_texts=request.queries,
                     collection_name=request.collection_name,
                     top_k=request.top_k,
                 )
         elif request.mode == "hybrid":
-            if request.sparse_process_method == "sparse_embedding":
+            if request.sparse_search_method == "embedding":
                 results = hybrid_search(
                     dense_query_embeddings=dense_query_embeddings,
                     sparse_query_embeddings=sparse_query_embeddings,
@@ -78,26 +83,13 @@ def retrieve_documents(request: schemas.RetrievalRequest) -> schemas.RetrievalRe
                     overfetch_mul=request.overfetch_mul,
                 )
             else:
-                overfetch_amount = max(
-                    request.top_k, int(request.top_k * request.overfetch_mul)
-                )
-
-                dense_results = dense_search(
-                    query_embeddings=dense_query_embeddings,
-                    collection_name=request.collection_name,
-                    top_k=overfetch_amount,
-                )
-                sparse_results = index_retrieve(
+                results = ii_hybrid_search(
+                    dense_query_embeddings=dense_query_embeddings,
                     query_texts=request.queries,
                     collection_name=request.collection_name,
-                    top_k=overfetch_amount,
+                    top_k=request.top_k,
+                    overfetch_mul=request.overfetch_mul,
                 )
-                results = [
-                    fuse_results(results1=dense_result, results2=sparse_result)
-                    for dense_result, sparse_result in zip(
-                        dense_results, sparse_results
-                    )
-                ]
         else:
             raise ValueError(f"Invalid retrieval mode: {request.mode}")
 

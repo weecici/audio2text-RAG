@@ -25,9 +25,9 @@ class RetrievalRequest(BaseModel):
     mode: Literal["dense", "sparse", "hybrid"] = Field(
         default="hybrid", description="The retrieval mode to use"
     )
-    sparse_process_method: Literal["sparse_embedding", "inverted_index"] = Field(
-        default="sparse_embedding",
-        description="Method for sparse encoding",
+    sparse_search_method: Literal["embedding", "inverted_index"] = Field(
+        default="embedding",
+        description="Method for sparse search",
     )
     overfetch_mul: float = Field(
         default=2.0,

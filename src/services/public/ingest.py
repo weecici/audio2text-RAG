@@ -8,7 +8,6 @@ from src.services.internal import (
     build_inverted_index,
 )
 from src.repo.postgres import upsert_data
-from src.repo.local import store_index
 
 
 def ingest_documents(request: schemas.IngestionRequest) -> schemas.IngestionResponse:
@@ -48,28 +47,21 @@ def ingest_documents(request: schemas.IngestionRequest) -> schemas.IngestionResp
 
         logger.info(f"Generated {len(sparse_embeddings)} sparse embeddings.")
 
-        # Build inverted index for the docs
-        indexed_docs = build_inverted_index(
+        # Build inverted index (postings list) for the docs
+        postings_list, doc_lens = build_inverted_index(
             texts=[node.text for node in nodes],
-            uuids=[node.id_ for node in nodes],
-            metadata=[node.metadata for node in nodes],
+            doc_ids=[node.id_ for node in nodes],
         )
 
-        logger.info(
-            f"Built inverted index with vocab size: {len(indexed_docs['vocab'])}"
-        )
+        logger.info(f"Built inverted index with size: {len(postings_list)}")
 
-        # Store the inverted index locally
-        store_index(
-            collection_name=request.collection_name,
-            indexed_docs=indexed_docs,
-        )
-
-        # Upsert data into VectorDB
+        # Upsert data (embeddings + postings list) into DB
         upsert_data(
             nodes=nodes,
             dense_embeddings=dense_embeddings,
             sparse_embeddings=sparse_embeddings,
+            postings_list=postings_list,
+            doc_lens=doc_lens,
             collection_name=request.collection_name,
         )
 

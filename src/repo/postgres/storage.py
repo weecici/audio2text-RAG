@@ -1,5 +1,6 @@
 import os
 import psycopg
+from uuid import UUID
 from functools import lru_cache
 from typing import Optional
 from psycopg import sql
@@ -8,6 +9,9 @@ from pgvector.psycopg import register_vector
 from llama_index.core.schema import BaseNode
 from src import schemas
 from src.core import config
+
+POSTINGS_LIST_TABLE_SUFFIX = "pl"
+DOC_FREQ_TABLE_SUFFIX = "df"
 
 
 def _get_db_params() -> dict:
@@ -39,54 +43,104 @@ def ensure_collection_exists(
     sparse_name: str = config.SPARSE_MODEL,
     dense_dim: int = config.DENSE_DIM,
     sparse_dim: int = config.SPARSE_DIM,
+    m: int = 32,
+    ef_construction: int = 128,
 ) -> None:
     conn = get_pg_conn()
 
-    create_table = sql.SQL(
+    create_main_table = sql.SQL(
         """
-		CREATE TABLE IF NOT EXISTS {table} (
-			id TEXT PRIMARY KEY,
+		CREATE TABLE IF NOT EXISTS {main_table} (
+			id UUID PRIMARY KEY,
 			text TEXT NOT NULL,
 			document_id TEXT,
 			title TEXT,
 			file_name TEXT,
 			file_path TEXT,
 			{dense_col} vector({dense_dim}) NOT NULL,
-			{sparse_col} sparsevec({sparse_dim})
+			{sparse_col} sparsevec({sparse_dim}) NOT NULL,
+            doc_len INT NOT NULL
 		);
 		"""
     ).format(
-        table=sql.Identifier(collection_name),
+        main_table=sql.Identifier(collection_name),
         dense_col=sql.Identifier(dense_name),
         sparse_col=sql.Identifier(sparse_name),
         dense_dim=sql.Literal(int(dense_dim)),
         sparse_dim=sql.Literal(int(sparse_dim)),
     )
 
-    create_dense_index = sql.SQL(
+    create_emb_index = sql.SQL(
         """
-		DO $$
-		BEGIN
-			IF NOT EXISTS (
-				SELECT 1 FROM pg_class c
-				JOIN pg_namespace n ON n.oid = c.relnamespace
-				WHERE c.relname = {idx_name}
-			) THEN
-				CREATE INDEX {index} ON {table}
-				USING hnsw ({dense_col} vector_cosine_ops) WITH (m = 32, ef_construction = 128);
-			END IF;
-		END $$;
+        CREATE INDEX IF NOT EXISTS {index} ON {table}
+        USING hnsw ({col} {ops}) WITH (m = {m}, ef_construction = {ef_construction});
 		"""
-    ).format(
+    )
+
+    create_dense_index = create_emb_index.format(
         idx_name=sql.Literal(f"{collection_name}_{dense_name}_idx"),
         index=sql.Identifier(f"{collection_name}_{dense_name}_idx"),
         table=sql.Identifier(collection_name),
-        dense_col=sql.Identifier(dense_name),
+        col=sql.Identifier(dense_name),
+        ops=sql.SQL("vector_cosine_ops"),
+        m=sql.Literal(m),
+        ef_construction=sql.Literal(ef_construction),
+    )
+
+    create_sparse_index = create_emb_index.format(
+        idx_name=sql.Literal(f"{collection_name}_{sparse_name}_idx"),
+        index=sql.Identifier(f"{collection_name}_{sparse_name}_idx"),
+        table=sql.Identifier(collection_name),
+        col=sql.Identifier(sparse_name),
+        ops=sql.SQL("sparsevec_ip_ops"),
+        m=sql.Literal(m),
+        ef_construction=sql.Literal(ef_construction),
+    )
+
+    create_postings_list_table = sql.SQL(
+        """
+        CREATE TABLE IF NOT EXISTS {pl_table} (
+            term TEXT,
+            doc_id UUID,
+            freq INT NOT NULL,
+            PRIMARY KEY (term, doc_id),
+            FOREIGN KEY (doc_id) REFERENCES {main_table}(id) ON DELETE CASCADE
+        );
+        """
+    ).format(
+        pl_table=sql.Identifier(f"{collection_name}_{POSTINGS_LIST_TABLE_SUFFIX}"),
+        main_table=sql.Identifier(collection_name),
+    )
+
+    create_term_index = sql.SQL(
+        """
+        CREATE INDEX IF NOT EXISTS {term_index} ON {pl_table} (term);
+        """
+    ).format(
+        term_index=sql.Identifier(
+            f"{collection_name}_{POSTINGS_LIST_TABLE_SUFFIX}_term_idx"
+        ),
+        pl_table=sql.Identifier(f"{collection_name}_{POSTINGS_LIST_TABLE_SUFFIX}"),
+    )
+
+    create_doc_freq_table = sql.SQL(
+        """
+        CREATE TABLE IF NOT EXISTS {df_table} (
+            term TEXT PRIMARY KEY,
+            doc_freq INT NOT NULL
+        );
+        """
+    ).format(
+        df_table=sql.Identifier(f"{collection_name}_{DOC_FREQ_TABLE_SUFFIX}"),
     )
 
     with conn.cursor() as cur:
-        cur.execute(create_table)
+        cur.execute(create_main_table)
         cur.execute(create_dense_index)
+        cur.execute(create_sparse_index)
+        cur.execute(create_postings_list_table)
+        cur.execute(create_term_index)
+        cur.execute(create_doc_freq_table)
 
 
 def _to_sparsevec(indices: list[int], values: list[float]) -> SparseVector:
@@ -99,6 +153,8 @@ def upsert_data(
     nodes: list[BaseNode],
     dense_embeddings: list[list[float]],
     sparse_embeddings: Optional[list[tuple[list[int], list[float]]]],
+    postings_list: dict[str, schemas.TermEntry],
+    doc_lens: dict[str, int],
     collection_name: str,
     dense_name: str = config.DENSE_MODEL,
     sparse_name: str = config.SPARSE_MODEL,
@@ -127,10 +183,10 @@ def upsert_data(
         sparse_dim=sparse_dim,
     )
 
-    insert_stmt = sql.SQL(
+    insert_main_table = sql.SQL(
         """
-		INSERT INTO {table} (id, text, document_id, title, file_name, file_path, {dense_col}, {sparse_col})
-		VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+		INSERT INTO {table} (id, text, document_id, title, file_name, file_path, {dense_col}, {sparse_col}, doc_len)
+		VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
 		ON CONFLICT (id) DO UPDATE SET
 			text = EXCLUDED.text,
 			document_id = EXCLUDED.document_id,
@@ -146,7 +202,33 @@ def upsert_data(
         sparse_col=sql.Identifier(sparse_name),
     )
 
-    rows = []
+    insert_pl_table = sql.SQL(
+        """
+        INSERT INTO {pl_table} (term, doc_id, freq)
+        VALUES (%s, %s, %s)
+        ON CONFLICT (term, doc_id) DO UPDATE SET
+            freq = EXCLUDED.freq;
+        """
+    ).format(
+        pl_table=sql.Identifier(f"{collection_name}_{POSTINGS_LIST_TABLE_SUFFIX}"),
+    )
+
+    insert_df_table = sql.SQL(
+        """
+        INSERT INTO {df_table} (term, doc_freq)
+        VALUES (%s, %s)
+        ON CONFLICT (term) DO UPDATE SET
+            doc_freq = EXCLUDED.doc_freq;
+        """
+    ).format(
+        df_table=sql.Identifier(f"{collection_name}_{DOC_FREQ_TABLE_SUFFIX}"),
+    )
+
+    main_rows = []
+    pl_rows = []
+    df_rows = []
+
+    # prepare main table rows
     for i, node in enumerate(nodes):
         payload = schemas.DocumentPayload(
             text=node.text,
@@ -160,9 +242,11 @@ def upsert_data(
             if len(idxs) > 0:
                 sparse_vec = _to_sparsevec(idxs, vals)
 
-        rows.append(
+        doc_len = doc_lens.get(node.id_, 0)
+
+        main_rows.append(
             (
-                node.id_,
+                UUID(node.id_),
                 payload.text,
                 payload.metadata.document_id,
                 payload.metadata.title,
@@ -170,8 +254,28 @@ def upsert_data(
                 payload.metadata.file_path,
                 dense_vec,
                 sparse_vec,
+                doc_len,
+            )
+        )
+
+    # prepare postings list and document frequency rows
+    for term, term_entry in postings_list.items():
+        for posting in term_entry.postings:
+            pl_rows.append(
+                (
+                    term,
+                    UUID(posting.doc_id),
+                    posting.term_freq,
+                )
+            )
+        df_rows.append(
+            (
+                term,
+                term_entry.doc_freq,
             )
         )
 
     with conn.cursor() as cur:
-        cur.executemany(insert_stmt, rows)
+        cur.executemany(insert_main_table, main_rows)
+        cur.executemany(insert_pl_table, pl_rows)
+        cur.executemany(insert_df_table, df_rows)
