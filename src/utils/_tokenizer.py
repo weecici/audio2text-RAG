@@ -8,6 +8,8 @@ _stopwords_path = _current_dir / "vietnamese-stopwords.txt"
 with open(_stopwords_path, "r", encoding="utf-8") as f:
     _stopwords: set[str] = set(line.strip() for line in f)
 
+_punctuations: set[str] = set([p for p in string.punctuation])
+
 
 def tokenize(
     texts: list[str],
@@ -16,7 +18,7 @@ def tokenize(
 
     # Remove punctuation
     punc_removed_tok_lists = [
-        [token for token in tokens if token not in string.punctuation]
+        [token for token in tokens if token not in _punctuations]
         for tokens in tokenized_texts
     ]
 
