@@ -20,4 +20,6 @@ dependencies = [
     "uvicorn>=0.38.0",
     "underthesea>=8.3.0",
     "sentencepiece>=0.2.1",
+    "google-genai>=1.49.0",
+    "yt-dlp>=2025.11.12",
 ]
