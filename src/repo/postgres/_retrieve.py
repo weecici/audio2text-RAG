@@ -174,6 +174,10 @@ def sparse_search(
                     df = int(df_row[0]) if df_row and df_row[0] is not None else 0
                     df_cache[term] = df
 
+                # skip if df == 0 (no documents contain this term)
+                if df == 0:
+                    continue
+
                 for doc_id, tf in postings:
                     sid = str(doc_id)
 
