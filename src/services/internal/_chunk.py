@@ -9,7 +9,7 @@ from src.utils import logger
 MODEL_ID = "gemini-flash-latest"
 
 
-prompt_template = """
+transcript_chunking_template = """
 You are an expert at chunking transcripts of audio files for information retrieval systems. Follow these rules exactly and produce only the requested output — no explanations or extra text.
 
 Parameters (replace placeholders):
@@ -44,6 +44,10 @@ Now process the transcript below using these rules **(slowly and carefully)**:
 
 """
 
+document_chunking_template = """
+You are an expert at chunking documents for information retrieval systems. Follow these rules exactly and produce only the requested output — no explanations or extra text.
+"""
+
 
 @lru_cache(maxsize=1)
 def _get_client() -> genai.Client:
@@ -54,18 +58,18 @@ def _get_client() -> genai.Client:
     return client
 
 
-def _ensure_list(paths: Union[str, list[str]]) -> list[str]:
-    if isinstance(paths, str):
-        return [paths]
-    return paths
+def _ensure_list(transcripts: Union[str, list[str]]) -> list[str]:
+    if isinstance(transcripts, str):
+        return [transcripts]
+    return transcripts
 
 
 def parse_response_into_chunks(response_text: str) -> list[tuple[str, str]]:
-    chunk_separator = "\n==========\n"
+    chunk_separator = "\n=========="
     chunks = response_text.strip().split(chunk_separator)
     parsed_chunks = []
 
-    filename_template = "{title} $ {start_time} $ {end_time}.txt"
+    title_template = "{title} $ {start_time} $ {end_time}"
 
     for chunk in chunks:
         try:
@@ -75,51 +79,45 @@ def parse_response_into_chunks(response_text: str) -> list[tuple[str, str]]:
                 logger.warning(f"Unexpected title format: {title_line}")
                 continue
             title, start_time, end_time = title_parts
-            filename = filename_template.format(
+            title = title_template.format(
                 title=title.strip(),
                 start_time=start_time.strip(),
                 end_time=end_time.strip(),
             )
-            parsed_chunks.append((filename, chunk_text.strip()))
+            parsed_chunks.append((title, chunk_text.strip()))
         except Exception as e:
             logger.error(f"Error parsing chunk: {e}")
             continue
     return parsed_chunks
 
 
-def chunk_transcripts(
-    filepaths: Union[str, list[str]],
+def chunk_transcript(
+    transcript: str,
+    save_outputs: bool = False,
     output_dir: str = config.CHUNKED_TRANSCRIPT_STORAGE_PATH,
     max_tokens: int = config.MAX_TOKENS,
-) -> list[str]:
-    filepaths = _ensure_list(filepaths)
+) -> list[list[tuple[str, str]]]:
+    """Return a list of list of tuples: (title, chunk_text) with len = len(filepaths)"""
     client = _get_client()
 
-    output_filepaths = []
+    try:
+        prompt = transcript_chunking_template.format(
+            transcript=transcript, max_token=max_tokens, lang="vi"
+        )
 
-    os.makedirs(output_dir, exist_ok=True)
-    for filepath in filepaths:
-        try:
-            with open(filepath, "r", encoding="utf-8") as f:
-                transcript = f.read()
-            prompt = prompt_template.format(
-                transcript=transcript, max_token=max_tokens, lang="vi"
-            )
+        response = client.models.generate_content(model=MODEL_ID, contents=prompt)
 
-            response = client.models.generate_content(model=MODEL_ID, contents=prompt)
-            print(response.text)
+        chunks = parse_response_into_chunks(response.text)
 
-            chunks = parse_response_into_chunks(response.text)
-
-            for filename, chunk_text in chunks:
-                chunk_path = os.path.join(output_dir, filename)
+        if save_outputs:
+            os.makedirs(output_dir, exist_ok=True)
+            for title, chunk_text in chunks:
+                chunk_path = os.path.join(output_dir, f"{title}.txt")
                 with open(chunk_path, "w", encoding="utf-8") as cf:
                     cf.write(chunk_text)
 
-                output_filepaths.append(chunk_path)
+        return chunks
 
-        except Exception as e:
-            logger.error(f"Error chunking transcript {filepath}: {e}")
-            continue
-
-    return output_filepaths
+    except Exception as e:
+        logger.error(f"Error chunking transcript: {e}")
+        return []
