@@ -40,8 +40,8 @@ async def process_documents(file_paths: list[str], file_dir: str) -> list[TextNo
     docs = reader.load_data()
 
     nodes: list[TextNode] = []
+    docs_info: list[tuple[str, str, str]] = []  # (audio_url, audio_title, filepath)
     tasks = []
-    docs_info: list[tuple[str, str, str]] = []  # (document_id, filename, filepath)
     for doc in docs:
         filepath = doc.metadata.get("file_path", "unknown")
         filename = Path(doc.metadata.get("file_name", "unknown")).stem
@@ -50,8 +50,7 @@ async def process_documents(file_paths: list[str], file_dir: str) -> list[TextNo
         audio_title = parts[0].strip()
         audio_url = parts[1].strip() if len(parts) == 2 else audio_title
 
-        doc.doc_id = audio_url
-        docs_info.append((audio_url, filename, filepath))
+        docs_info.append((audio_url, audio_title, filepath))
 
         text_type = "transcript" if _is_transcript_file(filepath) else "document"
         tasks.append(
@@ -61,14 +60,14 @@ async def process_documents(file_paths: list[str], file_dir: str) -> list[TextNo
     all_chunks: list[list[tuple[str, str]]] = await asyncio.gather(*tasks)
 
     for i, chunks in enumerate(all_chunks):
-        document_id, filename, filepath = docs_info[i]
+        audio_url, audio_title, filepath = docs_info[i]
         for title, chunk in chunks:
-            node_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{title}_{document_id}"))
+            node_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{title}_{audio_url}"))
 
             metadata = schemas.DocumentMetadata(
-                document_id=document_id,
+                document_id=audio_url,
                 title=title,
-                file_name=filename,
+                file_name=audio_title,
                 file_path=filepath,
             )
 
