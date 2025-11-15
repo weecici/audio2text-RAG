@@ -19,3 +19,7 @@ class GenerationResponse(BaseModel):
     responses: list[str] = Field(
         ..., description="List of generated responses corresponding to the queries"
     )
+    summarized_docs_list: list[list[RetrievedDocument]] = Field(
+        ...,
+        description="List of summarizations from retrieved documents with their metadata",
+    )

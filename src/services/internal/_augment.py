@@ -1,6 +1,7 @@
 from src import schemas
 
-prompt_template = """You are an AI assistant that helps users by providing detailed answers based on the context provided. Use the following context to answer the question below. If the context does not contain the answer, respond with "I don't know".
+prompt_template = """
+You are an AI assistant that helps users by providing detailed answers based on the context provided. Use the following context to answer the question below. If the context does not contain the answer, respond with "I don't know".
 
 CONTEXT DOCUMENTS:
 {context}
@@ -10,7 +11,7 @@ QUESTION:
 """
 
 
-def augment_prompts(
+def get_augmented_prompts(
     queries: list[str], contexts: list[list[schemas.RetrievedDocument]]
 ) -> list[str]:
     if len(queries) != len(contexts):
