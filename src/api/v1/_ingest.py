@@ -14,7 +14,7 @@ router = APIRouter()
 )
 async def ingest_documents(ctx: inngest.Context) -> dict[str, any]:
     request = schemas.DocumentIngestionRequest.model_validate(ctx.event.data)
-    return public_svcs.ingest_documents(request).model_dump()
+    return (await public_svcs.ingest_documents(request)).model_dump()
 
 
 @router.post(
@@ -26,7 +26,7 @@ async def ingest_documents(ctx: inngest.Context) -> dict[str, any]:
 async def ingest_documents_2(
     request: schemas.DocumentIngestionRequest,
 ) -> schemas.IngestionResponse:
-    return public_svcs.ingest_documents(request)
+    return await public_svcs.ingest_documents(request)
 
 
 @inngest_client.create_function(
