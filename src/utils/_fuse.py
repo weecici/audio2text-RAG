@@ -12,18 +12,19 @@ from collections import defaultdict
 def _fuse_rrf(
     results1: list[schemas.RetrievedDocument],
     results2: list[schemas.RetrievedDocument],
+    alpha: float = config.FUSION_ALPHA,
     k: int = config.RRF_K,
 ) -> list[schemas.RetrievedDocument]:
     fused_scores = defaultdict(float)
     all_docs: dict[Union[str, int], schemas.RetrievedDocument] = {}
 
     for rank, doc in enumerate(results1):
-        fused_scores[doc.id] += 1 / (k + rank)
+        fused_scores[doc.id] += alpha * (1 / (k + rank))
         if doc.id not in all_docs:
             all_docs[doc.id] = doc
 
     for rank, doc in enumerate(results2):
-        fused_scores[doc.id] += 1 / (k + rank)
+        fused_scores[doc.id] += (1 - alpha) * (1 / (k + rank))
         if doc.id not in all_docs:
             all_docs[doc.id] = doc
 
@@ -44,12 +45,16 @@ def _fuse_rrf(
 
 
 def _fuse_dbsf(
-    results1: list[schemas.RetrievedDocument], results2: list[schemas.RetrievedDocument]
+    results1: list[schemas.RetrievedDocument],
+    results2: list[schemas.RetrievedDocument],
+    alpha: float = config.FUSION_ALPHA,
 ) -> list[schemas.RetrievedDocument]:
     fused_scores = defaultdict(float)
     all_docs: dict[Union[str, int], schemas.RetrievedDocument] = {}
 
-    def _normalize_and_fuse(results: list[schemas.RetrievedDocument]) -> None:
+    def _normalize_and_fuse(
+        results: list[schemas.RetrievedDocument], coef: float
+    ) -> None:
         scores = np.array([doc.score for doc in results])
         if scores.size == 0:
             return
@@ -70,10 +75,10 @@ def _fuse_dbsf(
             if doc.id not in all_docs:
                 all_docs[doc.id] = doc
             normalized_score = (doc.score - lb) / score_range
-            fused_scores[doc.id] += normalized_score
+            fused_scores[doc.id] += coef * normalized_score
 
-    _normalize_and_fuse(results1)
-    _normalize_and_fuse(results2)
+    _normalize_and_fuse(results1, alpha)
+    _normalize_and_fuse(results2, 1 - alpha)
 
     if not fused_scores:
         return []
@@ -94,11 +99,12 @@ def _fuse_dbsf(
 def fuse_results(
     results1: list[schemas.RetrievedDocument],
     results2: list[schemas.RetrievedDocument],
+    alpha: float = config.FUSION_ALPHA,  # weight for first result set
     method: FusionMethod = config.FUSION_METHOD,
 ) -> list[schemas.RetrievedDocument]:
     if method == "rrf":
-        return _fuse_rrf(results1, results2)
+        return _fuse_rrf(results1, results2, alpha)
     elif method == "dbsf":
-        return _fuse_dbsf(results1, results2)
+        return _fuse_dbsf(results1, results2, alpha)
     else:
         raise ValueError(f"Unknown fusion method: {method}")

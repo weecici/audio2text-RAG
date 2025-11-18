@@ -29,6 +29,7 @@ FUSION_METHOD = os.getenv("FUSION_METHOD", "dbsf")
 RRF_K = int(os.getenv("RRF_K", 2))
 if not RRF_K > 0:
     raise ValueError("RRF_K must be a positive integer.")
+FUSION_ALPHA = float(os.getenv("FUSION_ALPHA", 0.7))
 
 # postgres
 POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")

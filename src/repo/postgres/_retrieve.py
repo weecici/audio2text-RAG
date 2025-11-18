@@ -242,6 +242,7 @@ def hybrid_search(
     collection_name: str,
     top_k: int = 5,
     overfetch_mul: float = 2.0,
+    alpha: float = config.FUSION_ALPHA,
     fusion_method: Literal["dbsf", "rrf"] = config.FUSION_METHOD,
     dense_name: str = config.DENSE_MODEL,
 ) -> list[list[schemas.RetrievedDocument]]:
@@ -262,7 +263,9 @@ def hybrid_search(
 
     fused_results: list[list[schemas.RetrievedDocument]] = []
     for d_res, s_res in zip(dense_results, sparse_results):
-        fused = fuse_results(results1=d_res, results2=s_res, method=fusion_method)
+        fused = fuse_results(
+            results1=d_res, results2=s_res, alpha=alpha, method=fusion_method
+        )
         fused_results.append(fused[:top_k])
 
     return fused_results
