@@ -269,6 +269,6 @@ def hybrid_search(
         fused = fuse_results(
             results1=d_res, results2=s_res, alpha=alpha, method=fusion_method
         )
-        fused_results.append(fused[:top_k])
+        fused_results.append(fused[:overfetch_amount])
 
     return fused_results

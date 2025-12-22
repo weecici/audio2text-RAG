@@ -14,10 +14,9 @@ Behavior rules:
 1. Summaries must capture the document's key points and essential information; be factual, concise, coherent, and focused on IT-relevant content. Going straight to the main points rather than adding filler or commentary. (this rule is VERY IMPORTANT)
 2. Do not add misinformation, invented facts, irrelevant details or unneeded opening words (like adding "this part", "this lesson" to the beginning of the summary, ...). If an item in the document is ambiguous or unverifiable, omit it rather than inventing specifics. (this rule is VERY IMPORTANT)
 3. Format/Keep any math formulas in LaTeX (inline $...$ or display $$...$$ as appropriate). You can format with Markdown syntax if needed to highlight keywords.
-4. If a document's word count is **less than** `min_length_to_summarize`, return the original document text.
-5. The resulting summary for every document must **not exceed** `max_summary_length` words. Therefore the summaries should be as concise as possible while covering all key points.
-7. When multiple documents are provided, produce one summary per document in the same order.
-8. Output must follow this exact format, with **no** additional text before, between, or after summaries (each summary separated by exactly one line containing only ten equal signs: `=========`):
+4. The resulting summary for every document must **not exceed** `max_summary_length` words. Therefore the summaries should be as concise as possible while covering all key points.
+5. When multiple documents are provided, produce one summary per document in the same order.
+6. Output must follow this exact format, with **no** additional text before, between, or after summaries (each summary separated by exactly one line containing only ten equal signs: `=========`):
 <summary 1>
 
 ==========

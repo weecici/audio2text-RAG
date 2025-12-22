@@ -64,14 +64,17 @@ async def retrieve_documents(
             raise ValueError(
                 f"Retrieval failed or returned incorrect number of results: {len(results)}"
             )
-        logger.info(
-            f"Retrieved top {request.top_k} similar documents for each of the {len(request.queries)} queries from collection '{request.collection_name}'."
-        )
-
         # Rerank results
         if request.rerank_enabled:
             logger.info("Starting reranking of retrieved results.")
             results = rerank(queries=request.queries, candidates=results)
+
+        if len(results) > 0 and len(results[0]) > request.top_k:
+            results = [res[: request.top_k] for res in results]
+
+        logger.info(
+            f"Retrieved top {request.top_k} similar documents for each of the {len(request.queries)} queries from collection '{request.collection_name}'."
+        )
 
         return schemas.RetrievalResponse(
             status=status.HTTP_200_OK,
